@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+
+  spring-petclinic:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - JAVA_TOOL_OPTIONS=-javaagent:/opentelemetry-javaagent.jar
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+    volumes:
+      - ./opentelemetry-javaagent.jar:/opentelemetry-javaagent.jar
+
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    ports:
+      - "4317:4317"  # OTLP gRPC
+      - "55681:55681" # OTLP HTTP
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    command: ["--config", "/etc/otel-collector-config.yaml"]
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.36
+    ports:
+      - "5775:5775"   # Thrift compact
+      - "5778:5778"   # Agent admin
+      - "14250:14250" # Thrift binary
+      - "14268:14268" # HTTP for traces
+      - "14250:14250" # GRPC for traces
+      - "16686:16686" # Jaeger UI
+      - "14267:14267" # Zipkin receiver
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yaml
+
+  # Optional: Add Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
